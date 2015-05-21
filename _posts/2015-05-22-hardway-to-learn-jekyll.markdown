@@ -10,13 +10,14 @@ I think this is a beginning to work as a professional.  Every day we learn thous
 
 I should for get the old way of pasting and formatting the code.  now markdown approach--
 
-```
-  publiic static void main(String args[]){
+
+    publiic static void main(String args[])
+    {
 	
 	  System.out.println("hello world");
-	}
+    }	
 
-```
+
 
 I understood that the vim is not a good way to type english.  It is for coders editor mostly.  That too is not working good when we cut and paste anything.  Did that behave like that to stop cut and paste coding.  Lol!  I can't say that.
 
