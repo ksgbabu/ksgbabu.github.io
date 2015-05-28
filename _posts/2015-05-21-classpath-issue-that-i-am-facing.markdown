@@ -1,4 +1,5 @@
 ---
+layout: post
 author: gireesh babu
 title: "class path issue in java"
 ---

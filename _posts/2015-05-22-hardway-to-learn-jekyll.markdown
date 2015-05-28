@@ -1,6 +1,6 @@
 ---
 author: gireesh
-layout: default
+layout: post
 title: jekyll learnings
 ---
 
