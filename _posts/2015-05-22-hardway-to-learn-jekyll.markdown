@@ -21,3 +21,5 @@ I should for get the old way of pasting and formatting the code.  now markdown a
 
 I understood that the vim is not a good way to type english.  It is for coders editor mostly.  That too is not working good when we cut and paste anything.  Did that behave like that to stop cut and paste coding.  Lol!  I can't say that.
 
+I don't get how the posts can be formated with the layouts.  I tried a bit but the included pages are not really picked up!
+
