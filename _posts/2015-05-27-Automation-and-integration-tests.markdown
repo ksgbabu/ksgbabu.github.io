@@ -10,3 +10,5 @@ I send the ice-cream-con anti pattern details to them.  None of them has respond
 
 Automation tests are vital for any releases as our test lead says they could reduce so many hours of man effort. It is a cost reduction.  But something comes in my mind is how they measure the hours of man effort saved?
 
+Automation can be successful only if there is a dedicated effort from team and someone in the team to lead that effort upfront.
+
