@@ -16,3 +16,7 @@ I think I got the solution.  I went and search in the apache maven repo and foun
 	    <artifactId>jetty-client</artifactId>
 	    <version>9.3.0.RC0</version>
 	</dependency>
+
+Unfortunately that version was not supporting jre 1.6 and my all efforts like went vain.  So some of my colleague suggested to use spray-can but that is in scala and did not get any head start on it.  Possibly every line of code and api has to be translated to Java eventhough it is not laborious any way.
+
+One big mistake was I did not check the API list and document within the code. I hope I can do it when I get some time.  It is a good idea to look at the API list and if any documentation around it (say grep code).
