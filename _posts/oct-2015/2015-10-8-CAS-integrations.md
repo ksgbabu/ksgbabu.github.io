@@ -2,7 +2,7 @@
 layout: post
 ---
 
-To exmplain the steps and configurations for Spring to CAS integration.
+To explain the steps and configurations for Spring to CAS integration.
 
 ### Spring security filter configurations
 
