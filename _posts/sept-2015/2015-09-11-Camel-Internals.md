@@ -2,6 +2,8 @@
 layout: post
 ---
 
+The description of various Camel components.
+
 Service
 -------
 Basic interface in Camel is Service which has a start and stop method.  Suspendable Service is an extension of it having suspend and resume methods.  ShutdownableService also a sibling to the former. StatefulService again extending both of these Services and provide the status related info like isStarted. ServiceSupport just help to change the state of the Service. 

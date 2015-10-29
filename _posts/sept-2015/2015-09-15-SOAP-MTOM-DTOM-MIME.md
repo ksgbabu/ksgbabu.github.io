@@ -2,8 +2,6 @@
 layout: post
 ---
 
-##MTOM
-
 Message Transmission Optimisation Mechanism (MTOM) is a standard that is developed by W3C. MTOM describes mechanism for optimising the transmission or wire format of a SOAP message by selectively re-encoding portions of the message while still presenting an XML information set to the SOAP application.
 
 There are different ways we may want to send binary attachments:
