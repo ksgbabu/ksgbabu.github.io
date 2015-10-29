@@ -188,3 +188,65 @@ Add a custom filter in the security.xm
 	    }
 
 	}
+	
+##Ticket Validation Side TargetURL
+
+		<sec:custom-filter ref="casFilter" position="CAS_FILTER" />
+        <sec:custom-filter ref="casLogoutFilter" before="LOGOUT_FILTER"/>
+		
+		<bean id="casFilter" class="org.springframework.security.cas.web.CasAuthenticationFilter">
+		        <property name="authenticationManager" ref="casAuthenticationManager" />
+		        <property name="authenticationFailureHandler" ref="casAuthenticationFailureHandler" />
+		        <property name="proxyAuthenticationFailureHandler" ref="casProxyAuthenticationFailureHandler" />
+		        <property name="serviceProperties" ref="serviceProperties" />
+		        <property name="authenticationDetailsSource">
+		            <bean
+		                class="org.springframework.security.cas.web.authentication.ServiceAuthenticationDetailsSource">
+		                <constructor-arg ref="serviceProperties"/>
+		             </bean>
+		        </property>
+		    </bean>
+			
+			<sec:authentication-manager id="casAuthenticationManager">
+			        <sec:authentication-provider ref="casProxyAuthenticationProvider" />
+			    </sec:authentication-manager>
+
+			    <bean id="casProxyAuthenticationProvider"
+			        class="com.mozanta.application.security.cas.MosaicCasAuthenticationProvider">
+			        <property name="ticketValidator">
+			            <bean class="org.jasig.cas.client.validation.Cas20ProxyTicketValidator">
+			                <constructor-arg value="#{T(org.apache.commons.lang3.StringUtils).defaultIfEmpty(T(com.mozanta.common.util.FrameworkProperties).get('casUrl'),'https://localhost:8443/cas')}" />
+			                <property name="acceptAnyProxy" value="true" />
+			            </bean>
+			        </property>
+			        <property name="authenticationUserDetailsService">
+			            <bean class="com.mozanta.application.authentication.service.CasUserDetailsService"/>
+			        </property>
+        
+			        <property name="grantedAuthoritiesProvider" ref="mosaicGrantedAuthoritiesProvider"></property>
+			        <property name="key" value="mozanta_cas" />
+			    </bean>
+    
+			    <bean id="casLogoutSuccessHandler" class="com.mozanta.application.security.cas.CasLogoutSuccessHandler" />
+			    <bean id="casLogoutHandler" class="com.mozanta.application.security.cas.CasLogoutHandler">
+			       <property name="casRestUri" value="#{T(org.apache.commons.lang3.StringUtils).defaultIfEmpty(T(com.mozanta.framework.common.util.FrameworkProperties).get('casUrl'),'https://localhost:8443/cas')}/v1/tickets" />
+			    </bean>
+    
+			    <!-- This filter redirects to the CAS Server to signal Single Logout should be performed -->
+			    <bean id="casLogoutFilter" class="org.springframework.security.web.authentication.logout.LogoutFilter">
+			        <constructor-arg name="logoutSuccessHandler" ref="casLogoutSuccessHandler" />
+			        <constructor-arg>
+			            <array>
+			                <bean class="org.springframework.security.web.authentication.logout.SecurityContextLogoutHandler" />
+			                <ref bean="casLogoutHandler"/>
+			            </array>
+			        </constructor-arg>
+			        <!-- Currently limited to portal access, can be extended to use other URL patterns with Regex matcher if needed.  -->
+			        <property name="filterProcessesUrl" value="/controller/portal/authentication/logout"></property>
+			    </bean>
+				
+			       <bean id="tokenServices" class="org.springframework.security.oauth2.provider.token.DefaultTokenServices">
+			           <property name="tokenStore" ref="tokenStore" />
+			           <property name="supportRefreshToken" value="true" />
+			           <property name="clientDetailsService" ref="clientDetails" />
+			       </bean>
