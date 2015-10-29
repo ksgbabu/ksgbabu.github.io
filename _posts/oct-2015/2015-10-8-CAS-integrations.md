@@ -2,7 +2,7 @@
 layout: post
 ---
 
-#Spring Security CAS integration
+##Spring Security CAS integration
 
 ### Spring security filter configurations
 
