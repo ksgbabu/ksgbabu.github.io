@@ -2,7 +2,7 @@
 layout: post
 ---
 
-![Web Cache](../image/web-cache.png)
+![Web Cache](/images/web-cache.png)
 
 ##Expires
 
