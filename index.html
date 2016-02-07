@@ -1,62 +1,21 @@
 ---
 layout: default
+title: Home Page
 ---
-
-<!doctype html>
-<html>
-  <head>
-    <meta charset="utf-8">
-    <meta http-equiv="X-UA-Compatible" content="chrome=1">
-    <title>Psite by giri4it</title>
-    <link rel="stylesheet" href="stylesheets/styles.css">
-    <link rel="stylesheet" href="stylesheets/github-dark.css">
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js"></script>
-    <script src="javascripts/main.js"></script>
-    <!--[if lt IE 9]>
-      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
-    <![endif]-->
-    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
-
-  </head>
-  <body>
-
-      <header>
-        <h1>ksgbabu.com</h1>
-        <p>Personal blog site</p>
-      </header>
-
-      <div id="banner">
-        <span id="logo"></span>
-        <div class="downloads">
-          <span>Blog posts:</span>
+    <header>
+        <div class="header-content">
+            <div class="header-content-inner">
+				<br />
+                <h2>This is all about<h2> <br /> <h1> Love </h1> <br /> 
+					<h2> Towards people and eager to help them.</h2>
+					<h2> Towards Technology and eager to use it effectively.</h2>
+                <hr>
+                <p>
+                	Here there are some people looking forward the help others, where ever we can!
+                </p>
+                <a href="/about.html" class="btn btn-primary btn-xl page-scroll">Find Out More</a>
+            </div>
         </div>
-      </div><!-- end banner -->
+    </header>
 
-    <div class="wrapper">
-      <nav>
-        <ul></ul>
-      </nav>
-      <section>
-        <h3>
-	<div class="home">
-
-	  <ul class="post-list">
-	    {% for post in site.posts %}
-	      <li>
-	        <span class="post-meta">{{ post.date | date: "%b %-d, %Y" }}</span>
-
-	        <h2>
-	          <a class="post-link" href="{{ post.url | prepend: site.baseurl }}">{{ post.title }}</a>
-	        </h2>
-					{{ post.excerpt }}
-	      </li>
-	    {% endfor %}
-	  </ul>
-      <footer>
-      
-      </footer>
-    </div>
-    <!--[if !IE]><script>fixScale(document);</script><![endif]-->
-    
-  </body>
-</html>
+ 

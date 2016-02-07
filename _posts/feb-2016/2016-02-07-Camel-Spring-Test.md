@@ -1,11 +1,12 @@
-----
+---
 layout: post
-----
+title: Sample Spring Test for Camel
+---
 
-##Preface
+
 How to write test for Camel was a day of effort.  Especially using the latest tools like spring 4.1, camel 2.15.  But the beauty is to keep the spring dsl xml in the class path where the package path should be the same.  Say we can keep the spring dsl xml in test/resources/com/ksgbabu/gateway/Usercontext...-context.xml
 
-###Sample Spring Test for Camel
+### Sample code
 
 	package com.ksgbabu.gateway;
 

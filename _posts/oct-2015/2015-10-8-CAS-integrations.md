@@ -1,5 +1,6 @@
 ---
-layout: post
+layout: default
+title: Spring security
 ---
 
 To explain the steps and configurations for Spring to CAS integration.
