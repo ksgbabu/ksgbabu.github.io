@@ -1,5 +1,8 @@
 ---
 layout: post
+title:  "Agile Project Management"
+date:   2016-06-20 14:38:54
+categories: Project Management
 ---
 
 Software Projects are journey to unknowns.  Some think they are an expedition.  When I look at my company

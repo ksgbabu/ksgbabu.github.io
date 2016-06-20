@@ -1,5 +1,8 @@
 ---
 layout: post
+title:  "Defining Career Matrix"
+date:   2016-06-20 14:38:54
+categories: Performance application
 ---
 
 Recently I had a sitting with our team to define Career Matrix.  Most of them are looking at that as a tool
