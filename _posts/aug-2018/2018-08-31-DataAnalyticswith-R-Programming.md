@@ -12,6 +12,8 @@ Just to summarise the work, let me exemplify it as:
 
 We were supposed to use a data frame like:
 
+```
+
 df <- data.frame(
  x = c("apple", "orange", "apple", "strawberry","apple"),
  d = as.Date(c('2009-02-02', '2008-03-03','2009-02-02','2008-03-03','2010-04-04')),
@@ -19,10 +21,13 @@ df <- data.frame(
  z = c(5:1)
 )
 
+```
 We could write an Analtical Query like:
 
+```
 aggregate(df,list(df[,1],df[,2]),function(i){ paste0(unique(i))})
 
+```
 To group some columns of that data frame. 
 
 To understand this query df is the original data before aggregation

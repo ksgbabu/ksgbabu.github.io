@@ -44,12 +44,13 @@
 	{% include nav.html %}
 	<div class="post">
 
-	  <header class="post-header">
+	  <header class="post-header" style="height: 150px;">
+		  <div style="height: 50px;">&nbsp;</div>
 	    <h2 class="post-title">{{ page.title }}</h2>
 	    <p class="post-meta">{{ page.date | date: "%b %-d, %Y" }}{% if page.author %} • {{ page.author }}{% endif %}{% if page.meta %} • {{ page.meta }}{% endif %}</p>
 	  </header>
-
-	  <article class="post-content wrapper">
+		<div style="height: 20px;">&nbsp;</div>
+	  <article class="post-content wrapper"  style="margin-left:20px;">
 	    {{ content }}
 	  </article>
 
