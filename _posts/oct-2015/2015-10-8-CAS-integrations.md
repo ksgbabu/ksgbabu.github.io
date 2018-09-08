@@ -87,7 +87,7 @@ Add a custom filter in the security.xm
 	
 ### Portal CAS Authentication Provider
 
-public class MosaicCasAuthenticationProvider extends PortalAuthenticationProvider {
+    public class MosaicCasAuthenticationProvider extends PortalAuthenticationProvider {
     private MosaicGrantedAuthoritiesProvider grantedAuthoritiesProvider;
 
     @Override
