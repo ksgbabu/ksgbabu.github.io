@@ -85,6 +85,23 @@ Add a custom filter in the security.xm
 
 	    <beans:bean id="pgtStorage" class="org.jasig.cas.client.proxy.ProxyGrantingTicketStorageImpl" />
 	
+### Portal CAS Authentication Provider
+
+public class MosaicCasAuthenticationProvider extends PortalAuthenticationProvider {
+    private MosaicGrantedAuthoritiesProvider grantedAuthoritiesProvider;
+
+    @Override
+    public Authentication authenticate(final Authentication authentication) throws AuthenticationException {
+        final CasAuthenticationToken auth = (CasAuthenticationToken) super.authenticate(authentication);
+        final Set<GrantedAuthority> authorities = grantedAuthoritiesProvider.provide((Principal) auth.getPrincipal());
+        return new CasAuthenticationToken(this.getKey(), auth.getUserDetails(), authentication.getCredentials(),
+                authorities, auth.getUserDetails(), auth.getAssertion());
+    }
+
+    public void setGrantedAuthoritiesProvider(MosaicGrantedAuthoritiesProvider grantedAuthoritiesProvider) {
+        this.grantedAuthoritiesProvider = grantedAuthoritiesProvider;
+    }
+}
 
 ### Service Ticket Retriever
 
