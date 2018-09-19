@@ -87,7 +87,7 @@ Add a custom filter in the security.xm
 	
 ### Portal CAS Authentication Provider
 
-    public class MosaicCasAuthenticationProvider extends PortalAuthenticationProvider {
+    public class PortalCasAuthenticationProvider extends PortalAuthenticationProvider {
     private MosaicGrantedAuthoritiesProvider grantedAuthoritiesProvider;
 
     @Override
@@ -103,8 +103,223 @@ Add a custom filter in the security.xm
     }
 }
 
-### Service Ticket Retriever
+### Portal Authority Granter
 
+
+public class BreadPermissionAuthorityGranter {
+
+    private final AuthorisationService authorisationService;
+
+    @Inject
+    public BreadPermissionAuthorityGranter(final AuthorisationService authorisationService) {
+        this.authorisationService = authorisationService;
+    }
+
+    public Set<BreadPermission> grant(final Principal principal) {
+        final Set<BreadPermission> breadPermissionAuthorities = new HashSet<BreadPermission>();
+        
+        final List<BreadPermission> breadPermissions = this.authorisationService
+                .retrieveBreadPermissions((CurrentUser) principal);
+        
+        for (final BreadPermission breadPermission : breadPermissions) {
+            breadPermissionAuthorities.add(breadPermission);
+        }
+        
+        return breadPermissionAuthorities;
+    }
+
+}
+
+### Bread Permission
+
+@SuppressWarnings("serial")
+public class BreadPermission extends Permissions implements Cloneable, Serializable {
+
+    private String uri;
+    private String role;
+
+    private BreadPermission(final Builder builder) {
+        super(builder);
+        this.uri = builder.uri;
+        this.role = builder.role;
+    }
+
+    public String getUri() {
+        return uri;
+    }
+
+    public String getRole() {
+        return role;
+    }
+
+    public boolean isReadOnly() {
+        return !(this.isEdit() || this.isAdd() || this.isDelete());
+    }
+    
+    @Override
+    public BreadPermission clone() {
+        try {
+            return (BreadPermission) super.clone();
+        } catch (CloneNotSupportedException e) {
+            throw new AssertionError(); // Can't happen
+        }
+    }
+
+    @Override
+    public String toString() {
+        return new ToStringBuilder(this).append("uri", this.uri).append("role", this.role).append("browse", isBrowse())
+                .append("read", isRead()).append("edit", isEdit()).append("add", isAdd()).append("delete", isDelete())
+                .toString();
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (obj == null || obj.getClass() != getClass()) {
+            return false;
+        }
+        if (obj == this) {
+            return true;
+        }
+
+        BreadPermission other = (BreadPermission) obj;
+        return new EqualsBuilder().append(this.uri, other.uri).append(this.role, other.role)
+                .append(isBrowse(), other.isBrowse()).append(this.isRead(), other.isRead())
+                .append(this.isRead(), other.isRead()).append(this.isAdd(), other.isAdd())
+                .append(this.isDelete(), other.isDelete()).isEquals();
+    }
+
+    @Override
+    public int hashCode() {
+        return new HashCodeBuilder(3, 5).append(this.uri).append(this.role).toHashCode();
+    }
+
+    public static class Builder extends Permissions.Builder {
+        private String uri;
+        private String role;
+
+        public Builder(final GranularPermissionDTO granularPermissionDTO) {
+            this.browse(granularPermissionDTO.isBrowse());
+            this.read(granularPermissionDTO.isRead());
+            this.edit(granularPermissionDTO.isEdit());
+            this.add(granularPermissionDTO.isAdd());
+            this.delete(granularPermissionDTO.isDelete());
+            this.uri = granularPermissionDTO.getUri();
+            this.role = granularPermissionDTO.getRole();
+        }
+
+        public Builder uri(final String uri) {
+            this.uri = uri;
+            return this;
+        }
+
+        public Builder role(final String role) {
+            this.role = role;
+            return this;
+        }
+
+        public Builder browse(final boolean browse) {
+            super.browse(browse);
+            return this;
+        }
+
+        public Builder read(final boolean read) {
+            super.read(read);
+            return this;
+        }
+
+        public Builder edit(final boolean edit) {
+            super.edit(edit);
+            return this;
+        }
+
+        public Builder add(final boolean add) {
+            super.add(add);
+            return this;
+        }
+
+        public Builder delete(final boolean delete) {
+            super.delete(delete);
+            return this;
+        }
+
+        public BreadPermission build() {
+            return new BreadPermission(this);
+        }
+    }
+}
+
+### BreadPermissionGranted Authority
+
+
+@SuppressWarnings("serial")
+public class BreadPermissionGrantedAuthority implements GrantedAuthority {
+
+    private final BreadPermission breadPermission;
+
+    public BreadPermissionGrantedAuthority(final BreadPermission breadPermission) {
+        this.breadPermission = breadPermission;
+    }
+
+    public String getAuthority() {
+        return null;
+    }
+    
+    public BreadPermission getBreadPermission() {
+        return breadPermission;
+    }
+
+    public int hashCode() {
+        return breadPermission.hashCode();
+    }
+
+    public boolean equals(Object obj) {
+        if (this == obj) {
+            return true;
+        }
+
+        if (obj instanceof BreadPermissionGrantedAuthority) {
+            BreadPermissionGrantedAuthority bpga = (BreadPermissionGrantedAuthority) obj;
+            return this.breadPermission.equals(bpga.breadPermission);
+        }
+
+        return false;
+    }
+
+    public String toString() {
+        return "Bread Authority [" + breadPermission.getUri() + "]";
+    }
+}
+
+### AuditSessionFacade
+
+
+public interface AuditSessionFacade {
+    long login(long workerId, Long workerActingForId, String remoteHost, String remoteAddress);
+
+    void logoff(long sessionId);
+
+    void timeout(long sessionId);
+
+    void audit(long sessionId, AuditOperationType auditedOperation, long auditedRecordId);
+
+    void auditPersonSearch(long sessionId, AuditPersonSearchDTO auditPersonSearchDTO);
+
+    void auditFailedLogOn(String systemUserId, String remoteHost, String remoteIpAddress);
+
+    long portalLogin(CurrentUser user);
+}
+
+
+### TicketRetriever Interface
+
+    
+public interface TicketRetriever {
+    String getTicket(String user);
+
+    String getTicket (String username, String password);
+}
+
+### ServiceTicketRetriever
 
 	import java.io.IOException;
 
@@ -207,7 +422,9 @@ Add a custom filter in the security.xm
 
 	}
 	
-##Ticket Validation Side TargetURL
+# The Target Side Configurations
+	
+###Ticket Validation Side TargetURL
 
 		<sec:custom-filter ref="casFilter" position="CAS_FILTER" />
         <sec:custom-filter ref="casLogoutFilter" before="LOGOUT_FILTER"/>
