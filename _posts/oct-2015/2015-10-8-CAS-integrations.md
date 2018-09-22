@@ -3,6 +3,8 @@ layout: post
 title: Spring security
 ---
 
+# The Source Side Configurations
+
 To explain the steps and configurations for Spring to CAS integration.
 
 ### Spring security filter configurations
