@@ -5,7 +5,7 @@ title: Spliting Mysql dump files
 
 #Spliting Mysql dump files
 
-### http://kedar.nitty-witty.com
+```
 ###SPLIT DUMP FILE INTO INDIVIDUAL TABLE DUMPS
 ### Text color variables
 txtund=$(tput sgr 0 1)    # Underline
@@ -44,3 +44,4 @@ else
     echo "Number of parameters is not 3"
 fi
 
+```
