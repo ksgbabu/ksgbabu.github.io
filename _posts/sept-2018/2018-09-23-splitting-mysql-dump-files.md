@@ -3,6 +3,10 @@ layout: post
 title: Spliting Mysql dump files
 ---
 
+Following code can be used for split large files into table specific segements.  The usage is
+
+script.sh dump -S <table-name>
+
 #Spliting Mysql dump files
 
 ```
