@@ -1,6 +1,6 @@
 ---
 layout: post
-title: Hadoop cluster hardware selection.
+title:Spliting Mysql dump files
 ---
 
 #Spliting Mysql dump files
