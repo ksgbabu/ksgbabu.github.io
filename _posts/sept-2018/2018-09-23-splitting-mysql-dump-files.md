@@ -1,6 +1,6 @@
 ---
 layout: post
-title:Spliting Mysql dump files
+title: Spliting Mysql dump files
 ---
 
 #Spliting Mysql dump files
