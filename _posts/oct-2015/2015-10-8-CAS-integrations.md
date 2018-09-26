@@ -1,15 +1,25 @@
 ---
 layout: post
-title: Spring security
+title: Spring security and CAS
 ---
+CAS Proxy Authentication will have a source application and target service/application URL to be accessed
+over single sign on. Both source application and Target service CAS based configurations are expained below.
 
 # The Source Side Configurations
 
-To explain the steps and configurations for Spring to CAS integration.
+## To explain the steps and configurations for Spring to CAS integration.
 
 ### Spring security filter configurations
 
-Add a custom filter in the security.xm
+Add a custom filter in the security.xml
+
+#### Add the following security filter configuration
+
+```
+    <sec:http>
+    <sec:custom-filter ref="casFilter" position="CAS_FILTER" />
+    </sec:http>
+```
 
 	        <custom-filter after="ANONYMOUS_FILTER" ref="cas_anonymousLoginFilterChain"/>
 			<custom-filter position="CAS_FILTER" ref="casFilter" />
@@ -29,6 +39,269 @@ Add a custom filter in the security.xm
 		         <beans:property name="userDetailsService" ref="portalUserDetailsService"/>
 		     </beans:bean>
 
+#### User Details Service (portalUserDetailsService)
+
+```
+public class CasUserDetailsService implements AuthenticationUserDetailsService<CasAssertionAuthenticationToken> {
+
+
+    @Loggable
+    Logger log;
+
+    @Override
+    public UserDetails loadUserDetails(final CasAssertionAuthenticationToken auth) throws UsernameNotFoundException {
+        Validate.notNull(auth.getAssertion(), "CAS assertion cannot be null.");
+        Validate.notNull(auth.getAssertion().getPrincipal(), "CAS assertion principal cannot be null.");
+        //Load user details from LDAP for authentication
+
+        return (UserDetails) user;
+    }
+
+    private void logDetails(final CurrentUser user) {
+        if (log.isDebugEnabled()) {
+            log.debug("Mosaic worker loaded for CAS.");
+            log.debug("ID >> " + user.getId());
+            log.debug("Name >> " + user.getActingForName());
+            log.debug("Role >>" + user.getRole());
+        }
+    }
+}
+
+Custome success Authenitcation Handler
+
+public class MosaicAuthenticationSuccessHandler extends SimpleUrlAuthenticationSuccessHandler {
+
+    private RequestCache requestCache = new HttpSessionRequestCache();
+
+    @Override
+    public void onAuthenticationSuccess(final HttpServletRequest request, final HttpServletResponse response,
+            final Authentication authentication) throws ServletException, IOException {
+        final SavedRequest savedRequest = requestCache.getRequest(request, response);
+
+        if (savedRequest == null) {
+            super.onAuthenticationSuccess(request, response, authentication);
+
+            return;
+        }
+
+        clearAuthenticationAttributes(request);
+        final String targetUrl = getTargetUrl(savedRequest);
+        getRedirectStrategy().sendRedirect(request, response, targetUrl);
+    }
+
+    private String getTargetUrl(final SavedRequest savedRequest) {
+        final String queryString = ((DefaultSavedRequest) savedRequest).getQueryString();
+        final String targetUrl = getDefaultTargetUrl() + "?" + queryString;
+        return targetUrl;
+    }
+
+    public void setRequestCache(final RequestCache requestCache) {
+        this.requestCache = requestCache;
+    }
+
+}
+
+public class PortalCustomSpecialPageHandler extends CustomSpecialPageHandler {
+
+    @Autowired
+    public PortalCustomSpecialPageHandler(PortalBusinessService pPortalBusinessService,
+                                          @Qualifier("securityHelper") SecurityHelper pSecurityHelper, LinkBusinessService pLinkBusinessService,
+                                          @Qualifier("linkBusinessProcess") LinkBusinessProcess pLinkBusinessProcess) {
+        super(pPortalBusinessService, pSecurityHelper, pLinkBusinessService, pLinkBusinessProcess);
+    }
+
+    @Override
+    public void handle(final HttpServletRequest request, final HttpServletResponse response,
+                       AccessDeniedException accessDeniedException) throws IOException {
+        if (isAjax(request)) {
+            response.setStatus(HttpStatus.FORBIDDEN.value());
+        } else {
+            super.handle(request, response, accessDeniedException);
+        }
+    }
+
+    @Override
+    public void onAuthenticationFailure(HttpServletRequest request, HttpServletResponse response, AuthenticationException exception) throws
+            IOException, ServletException {
+        if (isAjax(request)) {
+            response.setStatus(HttpStatus.UNAUTHORIZED.value());
+        } else {
+            super.onAuthenticationFailure(request, response, exception);
+        }
+    }
+
+    private boolean isAjax(final HttpServletRequest request) {
+        return "XMLHttpRequest".equals(request.getHeader("X-Requested-With"));
+    }
+}
+
+
+public class CasLogoutHandler implements LogoutHandler, InitializingBean {
+    private final HttpClient client = new HttpClient();
+    private String casRestUri;
+
+    @Override
+    public void logout(final HttpServletRequest request, final HttpServletResponse response,
+            final Authentication authentication) {
+        try {
+            if (authentication != null) {
+                final DeleteMethod delete = new DeleteMethod(casRestUri + '/' + authentication.getCredentials());
+                client.executeMethod(delete);
+            }
+        } catch (HttpException e) {
+            throw new MosaicRuntimeException("Error when logging out from CAS", e);
+        } catch (IOException e) {
+            throw new MosaicRuntimeException("Error when logging out from CAS", e);
+        }
+    }
+
+    @Override
+    public void afterPropertiesSet() throws Exception {
+        Assert.hasText(this.casRestUri, "A casRestUri must be set");
+    }
+
+    public void setCasRestUri(String casRestUri) {
+        this.casRestUri = casRestUri;
+    }
+}
+
+
+public class PortalCasAuthenticationProvider extends CasAuthenticationProvider {
+    private static final Logger LOGGER = LoggerFactory.getLogger(PortalCasAuthenticationProvider.class);
+    private TicketRetriever ticketRetriever;
+    private PasswordEncoder passwordEncoder = new PlaintextPasswordEncoder();
+    private AuthenticationService authenticationService;
+    private Object salt;
+
+    @Override
+    public void afterPropertiesSet() throws Exception {
+        Assert.notNull(this.ticketRetriever, "A ticketRetriever must be set");
+        Assert.notNull(this.authenticationService, "Authentication Service must be set");
+        super.afterPropertiesSet();
+    }
+
+    @Override
+    public Authentication authenticate(final Authentication authentication) throws AuthenticationException {
+        if (!supports(authentication.getClass())) {
+            return null;
+        }
+
+        final Authentication authToken;
+        if (isUsernamePasswordAuthentication(authentication)) {
+            this.validate(authentication);
+            authToken = this.getUsernamePasswordAuthentication(authentication);
+        } else {
+            authToken = authentication;
+        }
+        final CasAuthenticationToken auth = (CasAuthenticationToken) super.authenticate(authToken);
+        final User user = (User) auth.getUserDetails();
+        final UserDetails userDetails = authenticationService.getByUserId(user.getId());
+
+        final CurrentUser currentUser = CurrentUser.builder().build(user, userDetails);
+        return new CasAuthenticationToken(this.getKey(), currentUser, authentication.getCredentials(),
+                auth.getAuthorities(), currentUser, auth.getAssertion());
+    }
+
+    private void validate(final Authentication authentication) {
+        if (authentication.getCredentials() == null) {
+            throw new BadCredentialsException(messages.getMessage("PortalCasAuthenticationProvider.badCredentials",
+                    "Bad credentials"));
+        }
+    }
+
+    private Authentication getUsernamePasswordAuthentication(final Authentication authentication) {
+        final String reqUsername = authentication.getName();
+        final String reqPassword = passwordEncoder.encodePassword(authentication.getCredentials().toString(), salt);
+        try {
+            final String username = CasAuthenticationFilter.CAS_STATEFUL_IDENTIFIER;
+            final String password = ticketRetriever.getTicket(reqUsername, reqPassword);
+            return new UsernamePasswordAuthenticationToken(username, password);
+        } catch (final RuntimeException e) {
+            LOGGER.error("Failed to retrieve ticket", e);
+            throw new BadCredentialsException(e.getMessage(), e);
+        }
+    }
+
+    private boolean isUsernamePasswordAuthentication(final Authentication authentication) {
+        return authentication instanceof UsernamePasswordAuthenticationToken
+                && (!CasAuthenticationFilter.CAS_STATEFUL_IDENTIFIER.equals(authentication.getPrincipal().toString()) && !CasAuthenticationFilter.CAS_STATELESS_IDENTIFIER
+                        .equals(authentication.getPrincipal().toString()));
+    }
+
+    public void setTicketRetriever(final TicketRetriever ticketRetriever) {
+        this.ticketRetriever = ticketRetriever;
+    }
+
+    public void setAuthenticationService(final AuthenticationService authenticationService) {
+        this.authenticationService = authenticationService;
+    }
+
+    public void setPasswordEncoder(final PasswordEncoder passwordEncoder) {
+        this.passwordEncoder = passwordEncoder;
+    }
+
+    public void setSalt(final Object salt) {
+        this.salt = salt;
+    }
+
+}
+
+
+public class AuthenticationServiceImpl implements AuthenticationService {
+
+    public final VersionControlGateway versionControlGateway;
+    public final AuditSessionService auditSessionService;
+    private final SecurityGateway securityGateway;
+    private final CurrentUserProvider currentUserProvider;
+
+    @Inject
+    public AuthenticationServiceImpl(final VersionControlGateway versionControlGateway,
+            final AuditSessionService auditSessionService, final SecurityGateway securityGateway,
+            final CurrentUserProvider currentUserProvider) {
+        this.versionControlGateway = versionControlGateway;
+        this.auditSessionService = auditSessionService;
+        this.securityGateway = securityGateway;
+        this.currentUserProvider = currentUserProvider;
+    }
+
+    @Override
+    public void postSuccessfulLogin() {
+        this.securityGateway.loadSecurityStore();
+    }
+
+    @Override
+    public boolean isValidConfiguration() {
+        final CurrentUser currentUser = currentUserProvider.getCurrentUser();
+        return versionControlGateway.isValidConfiguration(currentUser);
+    }
+    
+    @Override
+    public long auditSessionLogin(final CurrentUser currentUser) {
+        final long auditSessionId = this.auditSessionService.login(currentUser.getId(),
+                new Long(currentUser.getActingForId()), currentUser.getRemoteHost(), currentUser.getRemoteAddress());
+        return auditSessionId;
+    }
+
+    @Override
+    public List<String> getInvalidComponents() {
+        return versionControlGateway.getInvalidComponents(currentUserProvider.getCurrentUser());
+    }
+    
+    @Override
+    public void updateSecurityContext(final CurrentUser currentUser) {
+        final SecurityContext context = SecurityContextHolder.getContext();
+        final UsernamePasswordAuthenticationToken existingAuthorisation = (UsernamePasswordAuthenticationToken) context.getAuthentication();
+        if (existingAuthorisation == null) {
+            throw new IllegalStateException("updateSecurityContext was called when the existing SecurityContext did not hold the expected Authorisation");
+        }
+        final Collection<GrantedAuthority> authorities = existingAuthorisation.getAuthorities();
+        final UsernamePasswordAuthenticationToken updatedAuthorisation = new UsernamePasswordAuthenticationToken(currentUser, null, authorities);
+        context.setAuthentication(updatedAuthorisation);
+    }
+
+}
+
+```
 		    <beans:bean id="casFilter" class="org.springframework.security.cas.web.CasAuthenticationFilter">
 		         <beans:property name="authenticationManager" ref="authenticationManager"/>
 		         <beans:property name="authenticationSuccessHandler" ref="customAuthenticationSuccessHandler"/>
