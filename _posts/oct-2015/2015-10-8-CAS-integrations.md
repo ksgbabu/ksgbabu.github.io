@@ -760,3 +760,346 @@ public interface TicketRetriever {
 			           <property name="supportRefreshToken" value="true" />
 			           <property name="clientDetailsService" ref="clientDetails" />
 			       </bean>
+			       
+### TokenStore sample implementation
+
+
+import javax.inject.Inject;
+
+import org.apache.commons.lang3.Validate;
+import org.springframework.stereotype.Service;
+
+import uk.co.corelogic.gateway.common.security.CurrentUser;
+import uk.co.corelogic.mosaic.common.exception.ValidationErrorException;
+
+@Service
+public class MockTokenStore {
+
+    private final Map<String, AccessToken> tokensByTokenId = new HashMap<String, AccessToken>();
+    private final Map<String, CurrentUser> currentUsersByTokenId = new HashMap<String, CurrentUser>();
+    private final AccessTokenFactory tokenFactory;
+    
+    @Inject
+    private MockTokenStore(final AccessTokenFactory tokenFactory) {
+        this.tokenFactory = tokenFactory;
+    }
+
+    public AccessToken createToken(final CurrentUser currentUser) {
+        Validate.notNull(currentUser);
+        final AccessToken accessToken = tokenFactory.createAccessToken(currentUser);
+        tokensByTokenId.put(accessToken.getToken(), accessToken);
+        currentUsersByTokenId.put(accessToken.getToken(), currentUser);
+        return accessToken;
+    }
+
+    public CurrentUser getCurrentUser(final String token) {
+        final AccessToken accessToken = tokensByTokenId.get(token);
+
+        if (accessToken == null) {
+            throw new ValidationErrorException("no token found");
+        }
+
+        if (System.currentTimeMillis() > accessToken.getExpiry()) {
+            throw new ValidationErrorException("token expired");
+        }
+
+        final CurrentUser currentUser = currentUsersByTokenId.get(token);
+        return currentUser;
+    }
+
+}
+
+### client details class 
+
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.oauth2.provider.ClientDetails;
+
+public class ClientDetailsImpl implements ClientDetails {
+
+    private Integer accessTokenValiditySeconds;
+    private String clientId;
+    private Collection<GrantedAuthority> authorities;
+    private Set<String> authorizedGrantTypes;
+    private String clientSecret;
+    private boolean isSecretRequired;
+    private boolean isScoped;
+    private Integer refreshTokenValiditySeconds;
+    private Set<String> registeredRedirectUri;
+    private Set<String> resourceIds;
+    private Set<String> scope;
+    private Map<String, Object> additionalInformation;
+
+    @Override
+    public Integer getAccessTokenValiditySeconds() {
+        return accessTokenValiditySeconds;
+    }
+
+    public void setAccessTokenValiditySeconds(Integer accessTokenValiditySeconds) {
+        this.accessTokenValiditySeconds = accessTokenValiditySeconds;
+    }
+
+    @Override
+    public String getClientId() {
+        return clientId;
+    }
+
+    public void setClientId(String clientId) {
+        this.clientId = clientId;
+    }
+
+    @Override
+    public Set<String> getAuthorizedGrantTypes() {
+        return authorizedGrantTypes;
+    }
+
+    public void setAuthorizedGrantTypes(Set<String> authorizedGrantTypes) {
+        this.authorizedGrantTypes = authorizedGrantTypes;
+    }
+
+    @Override
+    public String getClientSecret() {
+        return clientSecret;
+    }
+
+    public void setClientSecret(String clientSecret) {
+        this.clientSecret = clientSecret;
+    }
+
+    @Override
+    public boolean isSecretRequired() {
+        return isSecretRequired;
+    }
+
+    public void setSecretRequired(boolean isSecretRequired) {
+        this.isSecretRequired = isSecretRequired;
+    }
+
+    @Override
+    public boolean isScoped() {
+        return isScoped;
+    }
+
+    public void setScoped(boolean isScoped) {
+        this.isScoped = isScoped;
+    }
+
+    @Override
+    public Integer getRefreshTokenValiditySeconds() {
+        return refreshTokenValiditySeconds;
+    }
+
+    public void setRefreshTokenValiditySeconds(Integer refreshTokenValiditySeconds) {
+        this.refreshTokenValiditySeconds = refreshTokenValiditySeconds;
+    }
+
+    @Override
+    public Set<String> getRegisteredRedirectUri() {
+        return registeredRedirectUri;
+    }
+
+    public void setRegisteredRedirectUri(Set<String> registeredRedirectUri) {
+        this.registeredRedirectUri = registeredRedirectUri;
+    }
+
+    @Override
+    public Set<String> getResourceIds() {
+        return resourceIds;
+    }
+
+    public void setResourceIds(Set<String> resourceIds) {
+        this.resourceIds = resourceIds;
+    }
+
+    @Override
+    public Set<String> getScope() {
+        return scope;
+    }
+
+    public void setScope(Set<String> scope) {
+        this.scope = scope;
+    }
+
+    @Override
+    public Map<String, Object> getAdditionalInformation() {
+        return additionalInformation;
+    }
+
+    public void setAdditionalInformation(Map<String, Object> additionalInformation) {
+        this.additionalInformation = additionalInformation;
+    }
+
+    @Override
+    public Collection<GrantedAuthority> getAuthorities() {
+        return authorities;
+    }
+
+    @Override
+    public boolean isAutoApprove(String s) {
+        return false;
+    }
+
+    public void setAuthorities(final Collection<GrantedAuthority> authorities) {
+        this.authorities = authorities;
+    }
+
+}
+
+
+### Portal Authentication Provider
+
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.authentication.encoding.PasswordEncoder;
+import org.springframework.security.authentication.encoding.PlaintextPasswordEncoder;
+import org.springframework.security.cas.authentication.CasAuthenticationProvider;
+import org.springframework.security.cas.authentication.CasAuthenticationToken;
+import org.springframework.security.cas.web.CasAuthenticationFilter;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.AuthenticationException;
+import org.springframework.util.Assert;
+
+import uk.co.corelogic.mosaic.portal.authentication.service.AuthenticationService;
+import uk.co.corelogic.mosaic.portal.common.domain.model.CurrentUser;
+import uk.co.corelogic.mosaic.portal.common.persistence.domain.model.UserDetails;
+
+import com.backbase.portal.foundation.domain.model.User;
+
+
+public class PortalCasAuthenticationProvider extends CasAuthenticationProvider {
+    private static final Logger LOGGER = LoggerFactory.getLogger(PortalCasAuthenticationProvider.class);
+    private TicketRetriever ticketRetriever;
+    private PasswordEncoder passwordEncoder = new PlaintextPasswordEncoder();
+    private AuthenticationService authenticationService;
+    private Object salt;
+
+    @Override
+    public void afterPropertiesSet() throws Exception {
+        Assert.notNull(this.ticketRetriever, "A ticketRetriever must be set");
+        Assert.notNull(this.authenticationService, "Authentication Service must be set");
+        super.afterPropertiesSet();
+    }
+
+    @Override
+    public Authentication authenticate(final Authentication authentication) throws AuthenticationException {
+        if (!supports(authentication.getClass())) {
+            return null;
+        }
+
+        final Authentication authToken;
+        if (isUsernamePasswordAuthentication(authentication)) {
+            this.validate(authentication);
+            authToken = this.getUsernamePasswordAuthentication(authentication);
+        } else {
+            authToken = authentication;
+        }
+        final CasAuthenticationToken auth = (CasAuthenticationToken) super.authenticate(authToken);
+        final User user = (User) auth.getUserDetails();
+        final UserDetails userDetails = authenticationService.getByUserId(user.getId());
+
+        final CurrentUser currentUser = CurrentUser.builder().build(user, userDetails);
+        return new CasAuthenticationToken(this.getKey(), currentUser, authentication.getCredentials(),
+                auth.getAuthorities(), currentUser, auth.getAssertion());
+    }
+
+    private void validate(final Authentication authentication) {
+        if (authentication.getCredentials() == null) {
+            throw new BadCredentialsException(messages.getMessage("PortalCasAuthenticationProvider.badCredentials",
+                    "Bad credentials"));
+        }
+    }
+
+    private Authentication getUsernamePasswordAuthentication(final Authentication authentication) {
+        final String reqUsername = authentication.getName();
+        final String reqPassword = passwordEncoder.encodePassword(authentication.getCredentials().toString(), salt);
+        try {
+            final String username = CasAuthenticationFilter.CAS_STATEFUL_IDENTIFIER;
+            final String password = ticketRetriever.getTicket(reqUsername, reqPassword);
+            return new UsernamePasswordAuthenticationToken(username, password);
+        } catch (final RuntimeException e) {
+            LOGGER.error("Failed to retrieve ticket", e);
+            throw new BadCredentialsException(e.getMessage(), e);
+        }
+    }
+
+    private boolean isUsernamePasswordAuthentication(final Authentication authentication) {
+        return authentication instanceof UsernamePasswordAuthenticationToken
+                && (!CasAuthenticationFilter.CAS_STATEFUL_IDENTIFIER.equals(authentication.getPrincipal().toString()) && !CasAuthenticationFilter.CAS_STATELESS_IDENTIFIER
+                        .equals(authentication.getPrincipal().toString()));
+    }
+
+    public void setTicketRetriever(final TicketRetriever ticketRetriever) {
+        this.ticketRetriever = ticketRetriever;
+    }
+
+    public void setAuthenticationService(final AuthenticationService authenticationService) {
+        this.authenticationService = authenticationService;
+    }
+
+    public void setPasswordEncoder(final PasswordEncoder passwordEncoder) {
+        this.passwordEncoder = passwordEncoder;
+    }
+
+    public void setSalt(final Object salt) {
+        this.salt = salt;
+    }
+
+}
+
+### Granted Authorities
+
+
+import org.springframework.beans.factory.InitializingBean;
+import org.springframework.security.authentication.jaas.AuthorityGranter;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.util.Assert;
+
+import uk.co.corelogic.mosaic.configuration.domain.BreadPermission;
+
+public class GrantedAuthoritiesProvider implements InitializingBean {
+    private AuthorityGranter[] authorityGranters;
+    private BreadPermissionAuthorityGranter[] breadPermissionsAuthorityGranters;
+
+    public void setAuthorityGranters(AuthorityGranter[] authorityGranters) {
+        this.authorityGranters = authorityGranters;
+    }
+
+    public void setBreadPermissionAuthorityGranters(BreadPermissionAuthorityGranter[] breadPermissionsAuthorityGranters) {
+        this.breadPermissionsAuthorityGranters = breadPermissionsAuthorityGranters;
+    }
+
+    @Override
+    public void afterPropertiesSet() throws Exception {
+        Assert.notEmpty(authorityGranters, "authorityGranters cannot be null or empty");
+        Assert.notEmpty(breadPermissionsAuthorityGranters, "breadPermissionsAuthorityGranters cannot be null or empty");
+    }
+
+    public Set<GrantedAuthority> provide(final Principal principal) {
+        final Set<GrantedAuthority> authorities = new HashSet<GrantedAuthority>();
+        for (AuthorityGranter granter : authorityGranters) {
+            final Set<String> roles = granter.grant(principal);
+
+            // If the granter doesn't wish to grant any authorities, it should
+            // return null.
+            if ((roles != null) && !roles.isEmpty()) {
+                for (String role : roles) {
+                    authorities.add(new SimpleGrantedAuthority(role));
+                }
+            }
+        }
+
+        for (BreadPermissionAuthorityGranter breadGranter : breadPermissionsAuthorityGranters) {
+            Set<BreadPermission> breadPermissions = breadGranter.grant(principal);
+            if ((breadPermissions != null) && !breadPermissions.isEmpty()) {
+                for (BreadPermission breadPermission : breadPermissions) {
+                    authorities.add(new BreadPermissionGrantedAuthority(breadPermission));
+                }
+            }
+        }
+
+        return authorities;
+    }
+}
