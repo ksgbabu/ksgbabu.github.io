@@ -1103,3 +1103,89 @@ public class GrantedAuthoritiesProvider implements InitializingBean {
         return authorities;
     }
 }
+
+
+### AccessToken Factory
+
+
+import java.util.UUID;
+
+import org.apache.commons.lang3.Validate;
+import org.springframework.stereotype.Service;
+
+import uk.co.corelogic.gateway.common.security.CurrentUser;
+
+@Service
+public class AccessTokenFactory {
+
+    private final long EXPIRY_PERIOD = 1800000;
+
+    public AccessToken createAccessToken(final CurrentUser currentUser) {
+        Validate.notNull(currentUser);
+        final AccessToken accessToken = new AccessToken();
+        accessToken.setExpiry(System.currentTimeMillis() + EXPIRY_PERIOD);
+        accessToken.setSecret(UUID.randomUUID().toString());
+        accessToken.setToken(UUID.randomUUID().toString());
+        accessToken.setWorkerId(Long.toString(currentUser.getActingForId()));
+        return accessToken;
+    }
+}
+
+### Access Token
+
+
+public class AccessToken {
+
+    private String workerId;
+    private long expiry;
+    private String token;
+    private String secret;
+
+    public String getWorkerId() {
+        return workerId;
+    }
+
+    public void setWorkerId(String workerId) {
+        this.workerId = workerId;
+    }
+
+    public long getExpiry() {
+        return expiry;
+    }
+
+    public void setExpiry(long expiry) {
+        this.expiry = expiry;
+    }
+
+    public String getToken() {
+        return token;
+    }
+
+    public void setToken(String token) {
+        this.token = token;
+    }
+
+    public String getSecret() {
+        return secret;
+    }
+
+    public void setSecret(String secret) {
+        this.secret = secret;
+    }
+    
+    @Override
+    public boolean equals(Object object) {
+        if(object == null || !(object instanceof AccessToken)) {
+            return false;
+        }
+        if(this.token == null || ((AccessToken) object).getToken() == null) {
+            return false;
+        }
+        return this.token.equals(((AccessToken) object).getToken());
+    }
+    
+    @Override
+    public int hashCode() {
+        return this.token.hashCode();
+    }
+}
